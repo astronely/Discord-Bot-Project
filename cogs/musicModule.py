@@ -1,6 +1,6 @@
+import discord
 import itertools
 from functools import partial
-import discord
 import asyncio
 from async_timeout import timeout
 from config import *
@@ -57,7 +57,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 		data = await loop.run_in_executor(None, to_run)
 
 		if 'entries' in data:
-			# take first item from a playlist
+			# Выбирает первый url из очереди
 			data = data['entries'][0]
 
 		await ctx.send(f'`[Added {data["title"]} to the Queue.]\n`', delete_after=15)
@@ -114,9 +114,8 @@ class MusicPlayer:
 
 			self.current = source
 			self.volume = self.volume
-			# time.sleep(2)
 			self._guild.voice_client.play(source, after=lambda _: self.client.loop.call_soon_threadsafe(self.next.set))
-			self.np = await self._channel.send(f'**Now Playing:** `{source.title}`')
+			self.np = await self._channel.send(f'**Now Playing:** **`{source.title}`**')
 
 			await self.next.wait()
 
@@ -161,26 +160,28 @@ class Music(commands.Cog):
 	async def __error(ctx, error):
 		if isinstance(error, commands.NoPrivateMessage):
 			try:
-				return await ctx.send('This command can not be used in Private Messages.', delete_after=20)
+				return await ctx.send('Данная команда не может использоваться в личных сообщениях', delete_after=20)
 			except discord.HTTPException:
 				pass
 		elif isinstance(error, InvalidVoiceChannel):
-			await ctx.send('Error connecting to Voice Channel. '
-						   'Please make sure you are in a valid channel', delete_after=20)
+			await ctx.send('Не удалось подключиться к голосовому каналу. '
+						   'Убедитесь что вы находитесь в доступном голосовом канале.', delete_after=20)
 
 	@commands.command(name="leave", aliases=['l'])
 	async def leave_(self,ctx):
 		"""Выгоняет бота из войс чата"""
+
 		await ctx.voice_client.disconnect()
 
 	@commands.command(name="connect", aliases=['j','join'])
 	async def connect_(self, ctx, *, channel: discord.VoiceChannel = None):
 		"""Подключает бота к войс-чату в котором вы находитесь"""
+
 		if not channel:
 			try:
 				channel = ctx.author.voice.channel
 			except AttributeError:
-				await ctx.send("Connect to voice channel", delete_after=20)
+				await ctx.send("Подключитесь к голосовому каналу.", delete_after=20)
 
 		if ctx.voice_client:
 			if ctx.voice_client.channel.id == channel.id:
@@ -199,7 +200,7 @@ class Music(commands.Cog):
 	async def play_(self, ctx, *, url):
 		"""Включает звук видео из YouTube, если уже что-то запущенно, добавляет в очередь"""
 		if ctx.author.voice is None:
-			await ctx.send("Connect to voice channel", delete_after=20)
+			await ctx.send("Подключитесь к голосовому каналу.", delete_after=20)
 		if ctx.voice_client is None:
 			await ctx.author.voice.channel.connect()
 		else:
@@ -218,7 +219,7 @@ class Music(commands.Cog):
 		"""Пропускает текущую песню"""
 
 		if not ctx.voice_client or not ctx.voice_client.is_connected():
-			return await ctx.send(f"I'm not playing anything", delete_after=20)
+			return await ctx.send(f"Ничего не включено.", delete_after=20)
 		elif ctx.voice_client.is_paused():
 			return
 		if ctx.voice_client.is_paused():
@@ -234,7 +235,7 @@ class Music(commands.Cog):
 		"""Ставит на паузу"""
 
 		if not ctx.voice_client or not ctx.voice_client.is_playing:
-			return await ctx.send("I'm not playing anything", delete_after=20)
+			return await ctx.send("Ничего не включено", delete_after=20)
 		elif ctx.voice_client.is_paused():
 			return
 
@@ -246,7 +247,7 @@ class Music(commands.Cog):
 	async def resume_(self, ctx):
 		"""Возобновляет из паузы"""
 		if not ctx.voice_client or not ctx.voice_client.is_connected():
-			return await ctx.send("There is nothing to play", delete_after=20)
+			return await ctx.send("Ничего не включено", delete_after=20)
 		elif not ctx.voice_client.is_paused():
 			return
 
@@ -258,19 +259,16 @@ class Music(commands.Cog):
 		"""Информация об очереди"""
 
 		if not ctx.voice_client or not ctx.voice_client.is_connected():
-			return await ctx.send('I am not currently connected to voice!', delete_after=20)
+			return await ctx.send('Я не подключен к голосовому каналу.', delete_after=20)
 
 		player = self.get_player(ctx)
 		if player.queue.empty():
-			return await ctx.send('There are currently no more queued songs.', delete_after=20)
+			return await ctx.send('Очередь пустует', delete_after=20)
 
 		queue_list = list(itertools.islice(player.queue._queue, 0, player.queue.qsize()))
 
-		fmt = '\n'.join(f'**`{queue_list.index(_)+1}`** **{_["title"]}**' for _ in queue_list)
-		embed = discord.Embed(title=f'Current queue:', description=fmt)
-		embed.set_footer(
-			text=f"{client.user.name}",
-			icon_url=f"{client.user.avatar_url}")
+		info = '\n'.join(f'**`{queue_list.index(_)+1}`** **{_["title"]}**' for _ in queue_list)
+		embed = discord.Embed(title=f'Current queue:', description=info)
 
 		await ctx.send(embed=embed, delete_after=20)
 
@@ -279,14 +277,14 @@ class Music(commands.Cog):
 		"""Очищает всю очередь"""
 
 		if not ctx.voice_client or not ctx.voice_client.is_connected:
-			return await ctx.send("I'm not playing anything", delete_after=20)
+			return await ctx.send("Я ничего не играю", delete_after=20)
 
 		await self.cleanup(ctx.guild)
 
-	@commands.command(name='clean_messages', aliases=['cm'])
+	@commands.command(name='clean_messages', aliases=['clear'])
 	async def clean_messages(self, ctx, x):
 		"""Удаляет заданное колчество сообщений"""
-		await ctx.message.channel.purge(limit=int(x))
+		await ctx.message.channel.purge(limit=int(x)+1)
 
 def setup(client):
 	client.add_cog(Music(client))

@@ -2,7 +2,7 @@ import random
 import sqlite3
 
 def choose_word(level):
-	with sqlite3.connect('db/database.db') as db:
+	with sqlite3.connect('db/DiscordBot.db') as db:
 		cursor = db.cursor()
 
 		if level == 1:
